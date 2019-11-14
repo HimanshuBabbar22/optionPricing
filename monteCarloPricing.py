@@ -7,22 +7,23 @@ Created on Wed Nov 13 15:24:05 2019
 """
 
 import numpy as np
-from europeanOption import EuropeanOption
 
 class MonteCarloPricing:
     
     def __init__(self,
                  option,
+                 riskFreeRate,
+                 volatility,
                  stepsize, 
                  numOfPaths, 
-                 volatility, 
                  underlyingModel = 'GBM', 
                  discretizationMethod = 'Euler'):
         
         self.__option = option
+        self.__r = riskFreeRate
+        self.__sigma = volatility
         self.__stepsize = stepsize
         self.__paths = numOfPaths
-        self.__sigma = volatility
         self.__model = underlyingModel
         self.__method = discretizationMethod
     
@@ -43,7 +44,7 @@ class MonteCarloPricing:
     #TODO: Implement antithetic paths
     def __euler(self, antithetic):
         S0 = self.__option.underlyingPrice
-        r = self.__option.riskFreeRate
+        r = self.__r
         T = self.__option.timeToExpiry
         
         np.random.seed(seed = 1231)
@@ -78,7 +79,7 @@ class MonteCarloPricing:
     
     def optionPrice(self):
         K = self.__option.strikePrice
-        r = self.__option.riskFreeRate
+        r = self.__r
         T = self.__option.timeToExpiry
         
         St = self.samplePaths()
@@ -94,15 +95,18 @@ class MonteCarloPricing:
     
     def __repr__(self):
         
-        return "MonteCarloPricing({}, {}, {}, {}, {}, {})"\
+        return "MonteCarloPricing({}, {}, {}, {}, {}, {}, {})"\
                 .format(self.__option,
+                        self.__r,
+                        self.__sigma,
                         self.__stepsize,
                         self.__paths,
-                        self.__sigma,
                         self.__model,
                         self.__method)
     
 if __name__ == "__main__":
+    
+    from option import Option
     S0 = 100
     K = 110
     r = 0.10
@@ -111,15 +115,17 @@ if __name__ == "__main__":
     
     print('------------------------------------------------------------------'
           +'----------------------------')
-    option = EuropeanOption(S0, K, T, 'Call', r)
-    mcPricing = MonteCarloPricing(option, 0.001, 1000, volatility)
+    option = Option(S0, K, T, 'Call', 'European')
+    mcPricing = MonteCarloPricing(option, r, volatility, 0.001, 1000)
+    print(mcPricing)
     print('Monte-Carlo Estimate for Call:', mcPricing.optionPrice())
     
     print('------------------------------------------------------------------'
           +'----------------------------')
     
-    option = EuropeanOption(S0, K, T, 'Put', r)
-    mcPricing = MonteCarloPricing(option, 0.001, 1000, volatility)
-    print('Monte-Carlo Estimate for Put:', mcPricing.optionPrice())
+    option = Option(S0, K, T,  'Put', 'European')
+    mcPricing = MonteCarloPricing(option, r, volatility, 0.001, 1000)
     print(mcPricing)
+    print('Monte-Carlo Estimate for Put:', mcPricing.optionPrice())
+    
     

@@ -9,12 +9,17 @@ Created on Wed Nov 13 11:37:44 2019
 import numpy as np
 from scipy.optimize import fmin
 from scipy.stats import norm
-from europeanOption import EuropeanOption
 
 class BlackScholesPricing:
     
-    def __init__(self, option, volatility, dividendYield=0.0):
+    def __init__(self, 
+                 option, 
+                 riskFreeRate, 
+                 volatility, 
+                 dividendYield=0.0):
+        
         self.__option = option
+        self.__r = riskFreeRate
         self.__sigma = volatility
         self.__div = dividendYield
         pass
@@ -22,7 +27,7 @@ class BlackScholesPricing:
     def __d1(self):
         S0 = self.__option.underlyingPrice
         K = self.__option.strikePrice
-        r = self.__option.riskFreeRate
+        r = self.__r
         T = self.__option.timeToExpiry
         sigma = self.__sigma
         q = self.__div
@@ -32,9 +37,13 @@ class BlackScholesPricing:
         return d1
 
     def optionPrice(self, sigma=None):
+        if not self.__option.expiryType == 'European':
+            print('Not a European Option')
+            return 0.0
+        
         S0 = self.__option.underlyingPrice
         K = self.__option.strikePrice
-        r = self.__option.riskFreeRate
+        r = self.__r
         T = self.__option.timeToExpiry
         if sigma is None: sigma = self.__sigma
         q = self.__div
@@ -50,19 +59,27 @@ class BlackScholesPricing:
         if type(bsPrice) == np.ndarray:
             bsPrice = bsPrice[0]
         
-        return "{0:.2f}".format(bsPrice)
+        return float("{0:.2f}".format(bsPrice))
     
     def delta(self):
+        if not self.__option.expiryType == 'European':
+            print('Not a European Option')
+            return 0.0
+        
         T = self.__option.timeToExpiry
         q = self.__div
         
         d1 = self.__d1()
         if self.__option.optionType == 'Call':
-            return "{0:.6f}".format(np.exp(-q*T)*norm.cdf(d1))
+            return float("{0:.6f}".format(np.exp(-q*T)*norm.cdf(d1)))
         elif self.__option.optionType == 'Put':
-            return "{0:.6f}".format(np.exp(-q*T)*(norm.cdf(d1)-1))
+            return float("{0:.6f}".format(np.exp(-q*T)*(norm.cdf(d1)-1)))
     
     def gamma(self):
+        if not self.__option.expiryType == 'European':
+            print('Not a European Option')
+            return 0.0
+        
         S0 = self.__option.underlyingPrice
         T = self.__option.timeToExpiry
         sigma = self.__sigma
@@ -71,9 +88,13 @@ class BlackScholesPricing:
         d1 = self.__d1()
         gamma = norm.pdf(d1)*np.exp(-q*T)/(S0*sigma*np.sqrt(T))
         
-        return "{0:.6f}".format(gamma)
+        return float("{0:.6f}".format(gamma))
         
     def vega(self):
+        if not self.__option.expiryType == 'European':
+            print('Not a European Option')
+            return 0.0
+        
         S0 = self.__option.underlyingPrice
         T = self.__option.timeToExpiry
         q = self.__div
@@ -81,12 +102,16 @@ class BlackScholesPricing:
         d1 = self.__d1()
         vega = S0*np.sqrt(T)*norm.pdf(d1)*np.exp(-q*T)
         
-        return "{0:.6f}".format(vega)
+        return float("{0:.6f}".format(vega))
     
     def theta(self):
+        if not self.__option.expiryType == 'European':
+            print('Not a European Option')
+            return 0.0
+        
         S0 = self.__option.underlyingPrice
         K = self.__option.strikePrice
-        r = self.__option.riskFreeRate
+        r = self.__r
         T = self.__option.timeToExpiry
         sigma = self.__sigma
         q = self.__div
@@ -104,11 +129,15 @@ class BlackScholesPricing:
         
         theta = s1+s2
         
-        return "{0:.6f}".format(theta)
+        return float("{0:.6f}".format(theta))
     
     def rho(self):
+        if not self.__option.expiryType == 'European':
+            print('Not a European Option')
+            return 0.0
+        
         K = self.__option.strikePrice
-        r = self.__option.riskFreeRate
+        r = self.__r
         T = self.__option.timeToExpiry
         sigma = self.__sigma
         
@@ -116,20 +145,24 @@ class BlackScholesPricing:
         d2 = d1 - (sigma*np.sqrt(T))
         
         if self.__option.optionType == 'Call':
-            return "{0:.6f}".format(K*T*np.exp(-r*T)*norm.cdf(d2))
+            return float("{0:.6f}".format(K*T*np.exp(-r*T)*norm.cdf(d2)))
         elif self.__option.optionType == 'Put':
-            return "{0:.6f}".format(-K*T*np.exp(-r*T)*norm.cdf(-d2))
+            return float("{0:.6f}".format(-K*T*np.exp(-r*T)*norm.cdf(-d2)))
     
     @classmethod
     def __errorFunc(cls, implVol, *args):
         obj, price, dividendYield = args
-        err = abs(float(cls.optionPrice(obj, implVol)) - price)
+        err = abs(cls.optionPrice(obj, implVol) - price)
         return err
     
     def impliedVolatility(self, price, dividendYield=0.0):
+        if not self.__option.expiryType == 'European':
+            print('Not a European Option')
+            return 0.0
+        
         args = (self, price, dividendYield)
         impVol = fmin(BlackScholesPricing.__errorFunc, 1.0, args=args, disp=0)
-        return "{0:.6f}".format(impVol[0])
+        return float("{0:.6f}".format(impVol[0]))
     
     def __repr__(self):
         
@@ -139,6 +172,8 @@ class BlackScholesPricing:
                         self.__div)
     
 if __name__ == "__main__":
+    from option import Option
+    
     S0 = 100
     K = 110
     r = 0.10
@@ -147,8 +182,8 @@ if __name__ == "__main__":
     
     print('------------------------------------------------------------------'
           +'----------------------------')
-    option = EuropeanOption(S0, K, T, 'Call', r)
-    bsPricing = BlackScholesPricing(option, volatility)
+    option = Option(S0, K, T, 'Call', 'European')
+    bsPricing = BlackScholesPricing(option, r, volatility)
     print(bsPricing)
     print('Black Scholes Price:', bsPricing.optionPrice())
     print('Black Scholes Delta:', bsPricing.delta())
@@ -162,8 +197,8 @@ if __name__ == "__main__":
           +'----------------------------')
     
     
-    option = EuropeanOption(S0, K, T, 'Call', r)
-    bsPricing = BlackScholesPricing(option, volatility)
+    option = Option(S0, K, T, 'Put', 'European')
+    bsPricing = BlackScholesPricing(option, r, volatility)
     print(bsPricing)
     print('Black Scholes Price:', bsPricing.optionPrice())
     print('Black Scholes Delta:', bsPricing.delta())
