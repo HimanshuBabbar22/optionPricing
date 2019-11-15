@@ -27,18 +27,18 @@ class MonteCarloPricing:
         self.__model = underlyingModel
         self.__method = discretizationMethod
     
-    def samplePaths(self, antithetic=False):
+    def samplePaths(self):
         # Set random seed
         np.random.seed(seed = 1231)
         if self.__method == 'Euler':
             # Generate Stock prices using Euler discretization
-            St = self.__euler(antithetic)
+            StPos, StNeg = self.__euler()
         elif self.__method == 'Exact':
-            St = self.__exact(antithetic)
-        return St
+            StPos, StNeg = self.__exact()
+        return StPos, StNeg
     
     #TODO: Implement antithetic paths
-    def __euler(self, antithetic):
+    def __euler(self):
         S0 = self.__option.underlyingPrice
         r = self.__r
         T = self.__option.timeToExpiry
@@ -46,14 +46,18 @@ class MonteCarloPricing:
         
         numSteps = int(T/self.__stepsize)
         
-        St = np.zeros((self.__paths, numSteps+1))
-        St[:,0] = S0
+        # Building antithetic paths
+        StPos = np.zeros((self.__paths, numSteps+1))
+        StNeg = np.zeros((self.__paths, numSteps+1))
+        StPos[:,0] = S0
+        StNeg[:,0] = S0
         
         if self.__model == 'GBM':
             for i in range(1, numSteps+1):
                 dZ = np.random.standard_normal(self.__paths)
                 dW = np.sqrt(self.__stepsize)*dZ
-                St[:,i] = St[:,i-1] + r*St[:,i-1]*self.__stepsize + sigma*St[:,i-1]*dW
+                StPos[:,i] = StPos[:,i-1] + r*StPos[:,i-1]*self.__stepsize + sigma*StPos[:,i-1]*dW
+                StNeg[:,i] = StNeg[:,i-1] + r*StNeg[:,i-1]*self.__stepsize + sigma*StNeg[:,i-1]*(-dW)
         elif self.__model == 'JD':
             #TODO: implement
             pass
@@ -63,21 +67,24 @@ class MonteCarloPricing:
         elif self.__model == 'OU':
             #TODO: implement
             pass
-        return St
+        return StPos, StNeg
     
-    def __exact(self, antithetic):
+    def __exact(self):
         S0 = self.__option.underlyingPrice
         r = self.__r
         T = self.__option.timeToExpiry
         sigma = self.__sigma
         
         numSteps = int(T/self.__stepsize)
-        St = np.zeros((self.__paths, numSteps+1))
+        # Building antithetic paths
+        StPos = np.zeros((self.__paths, numSteps+1))
+        StNeg = np.zeros((self.__paths, numSteps+1))
         if self.__model == 'GBM':
             dZ = np.arange(0, T+self.__stepsize, self.__stepsize)*np.random.standard_normal((self.__paths, numSteps+1))
             dt = np.arange(0, T+self.__stepsize, self.__stepsize)
-            St = S0*np.exp((r - 0.5*(sigma**2))*dt + sigma*dZ)
-        return St
+            StPos = S0*np.exp((r - 0.5*(sigma**2))*dt + sigma*np.sqrt(dt)*dZ)
+            StNeg = S0*np.exp((r - 0.5*(sigma**2))*dt + sigma*np.sqrt(dt)*(-dZ))
+        return StPos, StNeg
     
     
     def optionPrice(self):
@@ -85,14 +92,17 @@ class MonteCarloPricing:
         r = self.__r
         T = self.__option.timeToExpiry
         
-        St = self.samplePaths()
+        StPos, StNeg = self.samplePaths()
         if self.__option.optionType == 'Call':
-            payoff = St[:,-1] - K
+            payoffPos = StPos[:,-1] - K
+            payoffNeg = StNeg[:,-1] - K
         elif self.__option.optionType == 'Put':
-            payoff = K - St[:,-1]
+            payoffPos = K - StPos[:,-1]
+            payoffNeg = K - StNeg[:,-1]
             
-        payoff[payoff < 0.0] = 0.0
-        mc_val = np.exp(-r*(T))*np.mean(payoff)
+        payoffPos[payoffPos < 0.0] = 0.0
+        payoffNeg[payoffNeg < 0.0] = 0.0
+        mc_val = np.exp(-r*(T))*np.mean((payoffPos+payoffNeg)/2)
         
         return "{0:.2f}".format(mc_val)
     

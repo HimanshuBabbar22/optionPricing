@@ -39,14 +39,17 @@ class RegressionMethods:
     def __cHat(x, a0, a1, a2, a3):
         return a0 + a1*x + a2*(x**2) + a3*(x**3)
 
-    def __payoffFunc(self, S):
+    def __payoffFunc(self, SPos, SNeg):
         K = self.__option.strikePrice
         if self.__option.optionType == 'Call':
-            payoff = S-K
+            payoffPos = SPos-K
+            payoffNeg = SNeg-K
         else:
-            payoff = K-S
-        payoff[payoff < 0] = 0.0
-        return payoff
+            payoffPos = K-SPos
+            payoffNeg = K-SNeg
+        payoffPos[payoffPos < 0] = 0.0
+        payoffNeg[payoffNeg < 0] = 0.0
+        return payoffPos, payoffNeg
     
     def optionPrice(self, method=1):
         if method == 1:
@@ -60,18 +63,28 @@ class RegressionMethods:
         
         stepsize = self.__stepsize
         
-        St = self.__mcObj.samplePaths()
-        M = St.shape[1]-1
-        V = np.zeros(St.shape)
-        V[:,M] = self.__payoffFunc(St[:,M])
+        StPos, StNeg = self.__mcObj.samplePaths()
+        M = StPos.shape[1]-1
+        VPos = np.zeros(StPos.shape)
+        VNeg = np.zeros(StPos.shape)
+        
+        VPos[:,M], VNeg[:,M] = self.__payoffFunc(StPos[:,M], StNeg[:,M])
         
         for i in range(M-1, 0, -1):
-            [opt_params, cov] = curveFit(RegressionMethods.__cHat, St[:,i], np.exp(-self.__r*stepsize)*V[:,i+1])
-            actual_payoff = self.__payoffFunc(St[:,i])
-            fitted_payoff = RegressionMethods.__cHat(St[:,i], *opt_params)
-            V[:,i] = np.maximum(actual_payoff, fitted_payoff)
+            [optParamsPos, cov] = curveFit(RegressionMethods.__cHat, StPos[:,i],\
+                                            np.exp(-self.__r*stepsize)*VPos[:,i+1])
+            
+            [optParamsNeg, cov] = curveFit(RegressionMethods.__cHat, StNeg[:,i],\
+                                            np.exp(-self.__r*stepsize)*VNeg[:,i+1])
+            
+            actPayoffPos, actPayoffNeg = self.__payoffFunc(StPos[:,i], StNeg[:,i])
+            fitPayoffPos = RegressionMethods.__cHat(StPos[:,i], *optParamsPos)
+            fitPayoffNeg = RegressionMethods.__cHat(StNeg[:,i], *optParamsNeg)
+            
+            VPos[:,i] = np.maximum(actPayoffPos, fitPayoffPos)
+            VNeg[:,i] = np.maximum(actPayoffNeg, fitPayoffNeg)
         
-        optPrice = np.exp(-self.__r*stepsize)*np.mean(V[:,1])
+        optPrice = np.exp(-self.__r*stepsize)*np.mean((VPos[:,1]+VNeg[:,1])/2)
         return float('{0:.2f}'.format(optPrice))
     
     def __regMethod2(self):
@@ -80,31 +93,46 @@ class RegressionMethods:
             return 0.0
         
         stepsize = self.__stepsize
-        St = self.__mcObj.samplePaths()
-        M = St.shape[1]-1
-        N = St.shape[0]
-        g = self.__payoffFunc(St[:,M])
-        tao = np.ones(N)*M
+        StPos, StNeg = self.__mcObj.samplePaths()
+        M = StPos.shape[1]-1
+        N = StPos.shape[0]
+        gPos, gNeg = self.__payoffFunc(StPos[:,M], StNeg[:,M])
+        taoPos, taoNeg = np.ones(N)*M, np.ones(N)*M
         
         for i in range(M-1, 0, -1):
             if self.__option.optionType == 'Call':
-                k = np.where(St[:,i] > K)[0]
+                kPos = np.where(StPos[:,i] > K)[0]
+                kNeg = np.where(StNeg[:,i] > K)[0]
             else:
-                k = np.where(K > St[:,i])[0]
-            if len(k) > 3:
-                [opt_params, cov] = curveFit(RegressionMethods.__cHat, 
-                                                St[k,i], 
-                                                np.exp(-self.__r*(tao[k]-i)*stepsize)*g[k]
+                kPos = np.where(K > StPos[:,i])[0]
+                kNeg = np.where(K > StNeg[:,i])[0]
+            if (len(kPos) > 3) and (len(kNeg) > 3):
+                [optParamsPos, cov] = curveFit(RegressionMethods.__cHat, 
+                                                StPos[kPos,i], 
+                                                np.exp(-self.__r*(taoPos[kPos]-i)*stepsize)*gPos[kPos]
                                             )
-            actual_payoff = self.__payoffFunc(St[k,i])
-            fitted_payoff = RegressionMethods.__cHat(St[k,i], *opt_params)
-            update_ixs = np.where((actual_payoff >= fitted_payoff) == True)[0]
-            g[k[update_ixs]] = actual_payoff[update_ixs]
-            tao[k[update_ixs]] = i
+                [optParamsNeg, cov] = curveFit(RegressionMethods.__cHat, 
+                                                StNeg[kNeg,i], 
+                                                np.exp(-self.__r*(taoNeg[kNeg]-i)*stepsize)*gNeg[kNeg]
+                                            )
+                
+            actPayoffPos, actPayoffNeg = self.__payoffFunc(StPos[kPos,i], StNeg[kNeg,i])
+            fitPayoffPos = RegressionMethods.__cHat(StPos[kPos,i], *optParamsPos)
+            fitPayoffNeg = RegressionMethods.__cHat(StNeg[kNeg,i], *optParamsNeg)
             
-        cHat0 = np.mean(np.exp(-self.__r*tao*stepsize)*g)
+            updateIdxsPos = np.where((actPayoffPos >= fitPayoffPos) == True)[0]
+            updateIdxsNeg = np.where((actPayoffNeg >= fitPayoffNeg) == True)[0]
+            gPos[kPos[updateIdxsPos]] = actPayoffPos[updateIdxsPos]
+            gNeg[kNeg[updateIdxsNeg]] = actPayoffNeg[updateIdxsNeg]
+            taoPos[kPos[updateIdxsPos]] = i
+            taoNeg[kNeg[updateIdxsNeg]] = i
+            
+        cHatPos0 = np.exp(-self.__r*taoPos*stepsize)*gPos
+        cHatNeg0 = np.exp(-self.__r*taoNeg*stepsize)*gNeg
+        cHat0 = np.mean((cHatPos0+cHatNeg0)/2)
         
-        v0 = np.mean(self.__payoffFunc(St[:,0]))
+        vPos0, vNeg0 = self.__payoffFunc(StPos[:,0], StNeg[:,0])
+        v0 = np.mean((vPos0+vNeg0)/2)
         
         optPrice = max(v0, cHat0)
         return float('{0:.2f}'.format(optPrice))
