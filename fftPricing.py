@@ -43,7 +43,7 @@ class FFTPricing:
             sig = (sigma**2)*(T)/2
             omega_prime = omega + 1j*(alpha+1)
             return np.exp(-1j*mu*omega_prime - sig*(omega_prime**2))
-        elif self.__model == '':
+        elif self.__model == 'VG':
             pass
     
     # Computes the Fourier Transform of a GBM.

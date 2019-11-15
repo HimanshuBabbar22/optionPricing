@@ -29,16 +29,12 @@ class MonteCarloPricing:
     
     def samplePaths(self, antithetic=False):
         # Set random seed
+        np.random.seed(seed = 1231)
         if self.__method == 'Euler':
             # Generate Stock prices using Euler discretization
             St = self.__euler(antithetic)
         elif self.__method == 'Exact':
-            #TODO: implement
-            pass
-        elif self.__method == 'Milstein':
-            #TODO: implement
-            pass
-    
+            St = self.__exact(antithetic)
         return St
     
     #TODO: Implement antithetic paths
@@ -46,19 +42,18 @@ class MonteCarloPricing:
         S0 = self.__option.underlyingPrice
         r = self.__r
         T = self.__option.timeToExpiry
+        sigma = self.__sigma
         
-        np.random.seed(seed = 1231)
-        num_steps = int(T/self.__stepsize)
+        numSteps = int(T/self.__stepsize)
         
-        St = np.zeros((self.__paths, num_steps+1))
+        St = np.zeros((self.__paths, numSteps+1))
         St[:,0] = S0
         
         if self.__model == 'GBM':
-            for i in range(1, num_steps+1):
+            for i in range(1, numSteps+1):
                 dZ = np.random.standard_normal(self.__paths)
                 dW = np.sqrt(self.__stepsize)*dZ
-                St[:,i] = St[:,i-1] + r*St[:,i-1]*self.__stepsize + self.__sigma*St[:,i-1]*dW
-            return St
+                St[:,i] = St[:,i-1] + r*St[:,i-1]*self.__stepsize + sigma*St[:,i-1]*dW
         elif self.__model == 'JD':
             #TODO: implement
             pass
@@ -68,14 +63,22 @@ class MonteCarloPricing:
         elif self.__model == 'OU':
             #TODO: implement
             pass
+        return St
     
-    #TODO: implement
-    def __exact(self, St):
-        pass
+    def __exact(self, antithetic):
+        S0 = self.__option.underlyingPrice
+        r = self.__r
+        T = self.__option.timeToExpiry
+        sigma = self.__sigma
+        
+        numSteps = int(T/self.__stepsize)
+        St = np.zeros((self.__paths, numSteps+1))
+        if self.__model == 'GBM':
+            dZ = np.arange(0, T+self.__stepsize, self.__stepsize)*np.random.standard_normal((self.__paths, numSteps+1))
+            dt = np.arange(0, T+self.__stepsize, self.__stepsize)
+            St = S0*np.exp((r - 0.5*(sigma**2))*dt + sigma*dZ)
+        return St
     
-    #TODO: implement
-    def __milstein(self, St):
-        pass
     
     def optionPrice(self):
         K = self.__option.strikePrice
@@ -116,16 +119,31 @@ if __name__ == "__main__":
     print('------------------------------------------------------------------'
           +'----------------------------')
     option = Option(S0, K, T, 'Call', 'European')
-    mcPricing = MonteCarloPricing(option, r, volatility, 0.001, 1000)
+    mcPricing = MonteCarloPricing(option, r, volatility, 0.001, 1000, discretizationMethod='Euler')
     print(mcPricing)
-    print('Monte-Carlo Estimate for Call:', mcPricing.optionPrice())
+    print('Monte-Carlo Estimate for Call using Euler discretization:', mcPricing.optionPrice())
     
     print('------------------------------------------------------------------'
           +'----------------------------')
     
     option = Option(S0, K, T,  'Put', 'European')
-    mcPricing = MonteCarloPricing(option, r, volatility, 0.001, 1000)
+    mcPricing = MonteCarloPricing(option, r, volatility, 0.001, 1000, discretizationMethod='Euler')
     print(mcPricing)
-    print('Monte-Carlo Estimate for Put:', mcPricing.optionPrice())
+    print('Monte-Carlo Estimate for Put using Euler discretization:', mcPricing.optionPrice())
+    
+    print('------------------------------------------------------------------'
+          +'----------------------------')
+    option = Option(S0, K, T, 'Call', 'European')
+    mcPricing = MonteCarloPricing(option, r, volatility, 0.001, 1000, discretizationMethod='Exact')
+    print(mcPricing)
+    print('Monte-Carlo Estimate for Call using Exact discretization:', mcPricing.optionPrice())
+    
+    print('------------------------------------------------------------------'
+          +'----------------------------')
+    
+    option = Option(S0, K, T,  'Put', 'European')
+    mcPricing = MonteCarloPricing(option, r, volatility, 0.001, 1000, discretizationMethod='Exact')
+    print(mcPricing)
+    print('Monte-Carlo Estimate for Put using Exact discretization:', mcPricing.optionPrice())
     
     
