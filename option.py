@@ -89,6 +89,26 @@ class Barrier(Option):
                       self.optionType,
                       self.barrierType,
                       self.barrierLevel)
+              
+class Lookback(Option):
+    
+    def __init__(self,
+                 underlyingPrice, 
+                 strikePrice, 
+                 timeToExpiry,
+                 optionType):
+        
+        super().__init__(underlyingPrice, strikePrice, timeToExpiry)
+        self.optionType = optionType
+        self.expiryType = 'Lookback'
+        
+    def __repr__(self):
+        
+        return "Lookback({}, {}, {}, {})"\
+              .format(self.underlyingPrice,
+                      self.strikePrice,
+                      self.timeToExpiry,
+                      self.optionType)
     
     
 if __name__ == "__main__":

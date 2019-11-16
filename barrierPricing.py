@@ -18,8 +18,7 @@ class BarrierOptionPricing:
                  volatility,
                  stepsize=0.001, 
                  numOfPaths=1000, 
-                 discretizationMethod = 'Euler'
-                 ):
+                 discretizationMethod = 'Euler'):
         
         self.__option = option
         self.__r = riskFreeRate
@@ -118,6 +117,7 @@ class BarrierOptionPricing:
         return payoff
     
     def optionPrice(self):
+        T = self.__option.timeToExpiry
         StPos, StNeg = self.__mcObj.samplePaths()
         
         if self.__option.barrierType == 'UO':
@@ -134,12 +134,12 @@ class BarrierOptionPricing:
             payoffNeg = self.__dnAndInPayoff(StNeg)
         
         
-        optVal = np.exp(-r*(T))*np.mean((payoffPos+payoffNeg)/2)
+        optVal = np.exp(-self.__r*(T))*np.mean((payoffPos+payoffNeg)/2)
         return float("{0:.2f}".format(optVal))
     
     def __repr__(self):
         
-        return "BarrierPricing({}, {}, {})"\
+        return "BarrierOptionPricing({}, {}, {})"\
                 .format(self.__option,
                         self.__r,
                         self.__sigma)
