@@ -64,12 +64,55 @@ class BarrierOptionPricing:
         paths = set()
         for i in range(1, numSteps+1):
             valuablePaths = np.where((St[:,i] >= level)==True)[0]
-            paths.union(valuablePaths)
+            if len(valuablePaths) > 0:
+                paths = paths.union(valuablePaths)
         
+        if self.__option.optionType == 'Call':
+            payoff[list(paths)] = St[list(paths),-1] - K
+        else:
+            payoff[list(paths)] = K - St[list(paths),-1]
+        
+        payoff[payoff <= 0.0] = 0.0
+        return payoff
+    
+    def __dnAndOutPayoff(self, St):
+        K = self.__option.strikePrice
+        T = self.__option.timeToExpiry
+        numSteps = int(T/self.__dt)
+        payoff = np.ones(self.__paths)
+        
+        level = self.__option.barrierLevel
+        for i in range(1, numSteps+1):
+            worthLessPaths = np.where((St[:,i] <= level)==True)[0]
+            if len(worthLessPaths) > 0:
+                payoff[worthLessPaths] = 0.0
+        
+        valuablePaths = np.where((payoff > 0.0)==True)[0]
         if self.__option.optionType == 'Call':
             payoff[valuablePaths] = St[valuablePaths,-1] - K
         else:
             payoff[valuablePaths] = K - St[valuablePaths,-1]
+        
+        payoff[payoff <= 0.0] = 0.0
+        return payoff
+    
+    def __dnAndInPayoff(self, St):
+        K = self.__option.strikePrice
+        T = self.__option.timeToExpiry
+        numSteps = int(T/self.__dt)
+        payoff = np.zeros(self.__paths)
+        
+        level = self.__option.barrierLevel
+        paths = set()
+        for i in range(1, numSteps+1):
+            valuablePaths = np.where((St[:,i] <= level)==True)[0]
+            if len(valuablePaths) > 0:
+                paths = paths.union(valuablePaths)
+        
+        if self.__option.optionType == 'Call':
+            payoff[list(paths)] = St[list(paths),-1] - K
+        else:
+            payoff[list(paths)] = K - St[list(paths),-1]
         
         payoff[payoff <= 0.0] = 0.0
         return payoff
@@ -83,10 +126,23 @@ class BarrierOptionPricing:
         elif self.__option.barrierType == 'UI':
             payoffPos = self.__upAndInPayoff(StPos)
             payoffNeg = self.__upAndInPayoff(StNeg)
+        elif self.__option.barrierType == 'DO':
+            payoffPos = self.__dnAndOutPayoff(StPos)
+            payoffNeg = self.__dnAndOutPayoff(StNeg)
+        elif self.__option.barrierType == 'DI':
+            payoffPos = self.__dnAndInPayoff(StPos)
+            payoffNeg = self.__dnAndInPayoff(StNeg)
         
         
         optVal = np.exp(-r*(T))*np.mean((payoffPos+payoffNeg)/2)
         return float("{0:.2f}".format(optVal))
+    
+    def __repr__(self):
+        
+        return "BarrierPricing({}, {}, {})"\
+                .format(self.__option,
+                        self.__r,
+                        self.__sigma)
  
 
 if __name__ == '__main__':
@@ -100,19 +156,17 @@ if __name__ == '__main__':
     
     print('------------------------------------------------------------------'
           +'----------------------------')
-    option = Barrier(S0, K, T, 'Put', 'UO', 135.0)
+    option = Barrier(S0, K, T, 'Put', 'DO', 80.0)
     baPricing = BarrierOptionPricing(option, r, volatility, 0.001, 1000, discretizationMethod='Euler')
-    #print(baPricing)
+    print(baPricing)
     print('Monte-Carlo Estimate for Up and Out Call:', baPricing.optionPrice())
     
-# =============================================================================
-#     print('------------------------------------------------------------------'
-#           +'----------------------------')   
-# 
-#     option = Barrier(S0, K, T, 'CAll', 'UI', 135.0)
-#     baPricing = BarrierOptionPricing(option, r, volatility, 0.001, 1000, discretizationMethod='Euler')
-#     #print(baPricing)
-#     print('Monte-Carlo Estimate for Up and In Call:', baPricing.optionPrice())    
-# =============================================================================
+    print('------------------------------------------------------------------'
+          +'----------------------------')   
+
+    option = Barrier(S0, K, T, 'Put', 'DI', 80.0)
+    baPricing = BarrierOptionPricing(option, r, volatility, 0.001, 1000, discretizationMethod='Euler')
+    print(baPricing)
+    print('Monte-Carlo Estimate for Up and In Call:', baPricing.optionPrice())    
         
         
