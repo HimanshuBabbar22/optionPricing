@@ -9,16 +9,16 @@ Created on Wed Nov 13 18:49:43 2019
 import numpy as np
 from scipy.optimize import curve_fit as curveFit
 from monteCarloPricing import MonteCarloPricing
+from option import Option
 
 class RegressionMethods:
     
     def __init__(self, 
-                 option, 
+                 option : Option, 
                  riskFreeRate,
                  volatility,
                  stepsize=0.001, 
                  numOfPaths=1000, 
-                 underlyingModel = 'GBM', 
                  discretizationMethod = 'Euler'
                  ):
         
@@ -31,7 +31,6 @@ class RegressionMethods:
                                          volatility,
                                          stepsize,
                                          numOfPaths,
-                                         underlyingModel,
                                          discretizationMethod)
     
 
@@ -145,7 +144,7 @@ class RegressionMethods:
                         self.__sigma)
         
 if __name__ == "__main__":
-    from option import Option
+    from option import American
     S0 = 100
     K = 110
     r = 0.10
@@ -154,7 +153,7 @@ if __name__ == "__main__":
     
     print('------------------------------------------------------------------'
           +'----------------------------')
-    option = Option(S0, K, T, 'Call', 'American')
+    option = American(S0, K, T, 'Call')
     regPricing = RegressionMethods(option, r, volatility)
     print(regPricing)
     print('Regression Method 1 price for Call:', regPricing.optionPrice())
@@ -162,14 +161,14 @@ if __name__ == "__main__":
     print('------------------------------------------------------------------'
           +'----------------------------')
     
-    option = Option(S0, K, T,  'Put', 'American')
+    option = American(S0, K, T, 'Put')
     regPricing = RegressionMethods(option, r, volatility)
     print(regPricing)
     print('Regression Method 1 price for Put:', regPricing.optionPrice())
     
     print('------------------------------------------------------------------'
           +'----------------------------')
-    option = Option(S0, K, T, 'Call', 'American')
+    option = American(S0, K, T, 'Call')
     regPricing = RegressionMethods(option, r, volatility)
     print(regPricing)
     print('Regression Method 2 price for Call:', regPricing.optionPrice(2))
@@ -177,7 +176,7 @@ if __name__ == "__main__":
     print('------------------------------------------------------------------'
           +'----------------------------')
     
-    option = Option(S0, K, T,  'Put', 'American')
+    option = American(S0, K, T, 'Put')
     regPricing = RegressionMethods(option, r, volatility)
     print(regPricing)
     print('Regression Method 2 price for Put:', regPricing.optionPrice(2))

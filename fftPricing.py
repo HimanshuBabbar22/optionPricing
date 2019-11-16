@@ -8,11 +8,12 @@ Created on Thu Nov 14 01:32:26 2019
 
 import numpy as np
 from scipy.interpolate import interp1d
+from option import Option
 
 class FFTPricing:
     
     def __init__(self,
-                 option,
+                 option : Option,
                  riskFreeRate,
                  volatility,
                  samplePoints,
@@ -99,7 +100,7 @@ class FFTPricing:
                         self.__alpha)
     
 if __name__ == "__main__":
-    from option import Option
+    from option import European
     S0 = 100
     K = 110
     r = 0.10
@@ -112,14 +113,14 @@ if __name__ == "__main__":
     
     print('------------------------------------------------------------------'
           +'----------------------------')
-    option = Option(S0, K, T, 'Call', 'European')
+    option = European(S0, K, T, 'Call')
     fftPricing = FFTPricing(option, r, volatility, N, B, alpha)
     print(fftPricing)
     print('FFT price for Call:', fftPricing.optionPrice())
     
     print('------------------------------------------------------------------'
           +'----------------------------')
-    option = Option(S0, K, T, 'Put', 'European')
+    option = European(S0, K, T, 'Put')
     fftPricing = FFTPricing(option, r, volatility, N, B, -alpha)
     print(fftPricing)
     print('FFT price for Put:', fftPricing.optionPrice())

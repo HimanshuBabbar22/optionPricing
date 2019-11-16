@@ -172,7 +172,7 @@ class BlackScholesPricing:
                         self.__div)
     
 if __name__ == "__main__":
-    from option import Option
+    from option import European
     
     S0 = 100
     K = 110
@@ -182,7 +182,7 @@ if __name__ == "__main__":
     
     print('------------------------------------------------------------------'
           +'----------------------------')
-    option = Option(S0, K, T, 'Call', 'European')
+    option = European(S0, K, T, 'Call')
     bsPricing = BlackScholesPricing(option, r, volatility)
     print(bsPricing)
     print('Black Scholes Price:', bsPricing.optionPrice())
@@ -197,7 +197,7 @@ if __name__ == "__main__":
           +'----------------------------')
     
     
-    option = Option(S0, K, T, 'Put', 'European')
+    option = European(S0, K, T, 'Put')
     bsPricing = BlackScholesPricing(option, r, volatility)
     print(bsPricing)
     print('Black Scholes Price:', bsPricing.optionPrice())
