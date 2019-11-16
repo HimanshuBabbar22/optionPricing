@@ -109,6 +109,26 @@ class Lookback(Option):
                       self.strikePrice,
                       self.timeToExpiry,
                       self.optionType)
+              
+class Asian(Option):
+    
+    def __init__(self,
+                 underlyingPrice, 
+                 strikePrice, 
+                 timeToExpiry,
+                 optionType):
+        
+        super().__init__(underlyingPrice, strikePrice, timeToExpiry)
+        self.optionType = optionType
+        self.expiryType = 'Asian'
+        
+    def __repr__(self):
+        
+        return "Lookback({}, {}, {}, {})"\
+              .format(self.underlyingPrice,
+                      self.strikePrice,
+                      self.timeToExpiry,
+                      self.optionType)
     
     
 if __name__ == "__main__":
